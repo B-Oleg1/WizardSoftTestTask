@@ -5,7 +5,10 @@ VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WizardSoftTestTaskAPI", "WizardSoftTestTask\WizardSoftTestTaskAPI.csproj", "{B09CA486-B8DD-4869-B7A4-AA933813664F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WizardSoftTestTaskClient", "WizardSoftTestTaskClient\WizardSoftTestTaskClient.csproj", "{BB2BCCB8-0388-4368-8F83-A1D458C886E6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WizardSoftTestTaskClient", "WizardSoftTestTaskClient\WizardSoftTestTaskClient.csproj", "{BB2BCCB8-0388-4368-8F83-A1D458C886E6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B09CA486-B8DD-4869-B7A4-AA933813664F} = {B09CA486-B8DD-4869-B7A4-AA933813664F}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

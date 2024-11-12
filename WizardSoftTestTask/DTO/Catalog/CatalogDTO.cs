@@ -19,6 +19,11 @@
 
         public CatalogDTO(WizardSoftTestTaskAPI.Models.Catalog catalog)
         {
+            if (catalog == null)
+            {
+                return;
+            }
+
             Id = catalog.Id;
             Name = catalog.Name;
             ParentId = catalog.ParentId;

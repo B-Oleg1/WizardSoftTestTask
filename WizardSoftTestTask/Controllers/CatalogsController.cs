@@ -28,22 +28,22 @@ namespace WizardSoftTestTaskAPI.Controllers
         /// <remarks>
         /// Возвращает список каталогов, которые являются дочерними у каталога с ID, указанным в <c>parentCatalogId</c>
         /// </remarks>
-        /// <param name="parentCatalogId">ID родительского каталога. Пустое значение - если у каталога не должно быть родительского элемента</param>
+        /// <param name="parentId">ID родительского каталога. Пустое значение - если у каталога не должно быть родительского элемента</param>
         /// <param name="requestPaginationDTO">Пагинация данных, получаемых из запроса</param>
         /// <response code="200">Успешное получение списка каталогов</response>
         [HttpGet]
         [ProducesResponseType(typeof(ResponsePaginationDTO<CatalogDTO>), StatusCodes.Status200OK, "application/json")]
-        public async Task<IActionResult> GetCatalogs([FromQuery] long? parentCatalogId = null,
+        public async Task<IActionResult> GetCatalogs([FromQuery] long? parentId = null,
                                                      [FromQuery] RequestPaginationDTO? requestPaginationDTO = null)
         {
-            IQueryable<Catalog> queryableCatalogs = _catalogsDbContext.Catalogs.Where(c => c.ParentId == parentCatalogId);
+            IQueryable<Catalog> queryableCatalogs = _catalogsDbContext.Catalogs.Where(c => c.ParentId == parentId);
             long totalCountElements = await queryableCatalogs.LongCountAsync();
 
             requestPaginationDTO ??= new();
-            List<CatalogDTO> catalogsDTO = await queryableCatalogs.Select(c => new CatalogDTO(c))
-                                                                  .Skip((requestPaginationDTO.PageNumber - 1) * requestPaginationDTO.PageSize)
+            List<CatalogDTO> catalogsDTO = await queryableCatalogs.Skip((requestPaginationDTO.PageNumber - 1) * requestPaginationDTO.PageSize)
                                                                   .Take(requestPaginationDTO.PageSize)
-                                                                  .ToListAsync();
+                                                                  .OrderBy(c => c.Id)
+                                                                  .Select(c => new CatalogDTO(c)).ToListAsync();
 
             ResponsePaginationDTO<CatalogDTO> responsePaginationDTO = new()
             {
