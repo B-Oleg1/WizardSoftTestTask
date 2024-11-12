@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+п»їusing Microsoft.EntityFrameworkCore;
 using WizardSoftTestTaskAPI.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +8,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Подключаем XML-комментарии к Swagger
+    // РџРѕРґРєР»СЋС‡Р°РµРј XML-РєРѕРјРјРµРЅС‚Р°СЂРёРё Рє Swagger
     var xmlFiles = Directory.GetFiles(AppContext.BaseDirectory, "*.xml", SearchOption.TopDirectoryOnly);
     foreach (var xmlFile in xmlFiles)
     {
