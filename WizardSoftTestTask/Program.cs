@@ -20,12 +20,8 @@ builder.Services.AddDbContext<CatalogsDbContext>(options => options.UseInMemoryD
 
 var app = builder.Build();
 
-// true - временно, чтобы можно было смотреть интерфейс API после билда
-if (true || app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 

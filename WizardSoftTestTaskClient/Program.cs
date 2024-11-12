@@ -1,67 +1,50 @@
 ﻿using Newtonsoft.Json;
+using System;
 using WizardSoftTestTaskAPI.DTO.Catalog;
 using WizardSoftTestTaskAPI.DTO.Paginations;
+using WizardSoftTestTaskClient.Repositories;
 
-const string serverAddress = "http://localhost:5000/api/v1/";
-var client = new HttpClient();
-
+CatalogRepository catalogRepository = new();
 int currentPage = 1;
 long? parentId = null;
 
 while (true)
 {
-	var catalogsReseponse = await GetCatalogs(parentId, currentPage);
-
-    Console.WriteLine($"Текущий каталог - {(parentId == null ? "root" : parentId)}. Вложенные:");
-	foreach (var catalog in catalogsReseponse.Data)
-	{
-		Console.WriteLine($"[{catalog.Id} ID] {catalog.Name}");
-	}
-    Console.WriteLine($"\nСтраница: {catalogsReseponse.PageNumber} из {catalogsReseponse.TotalPages}\n");
-
-    Console.WriteLine("Введите команду:");
-    Console.WriteLine("n - следующая страница");
-    Console.WriteLine("p - предыдущая страница");
-    Console.WriteLine("cd [catalogId] - зайти в каталог");
-    Console.WriteLine(".. - выйти из текущего каталога назад");
-    Console.WriteLine("mk [catalogName] - создать каталог в текущем каталоге");
-    Console.WriteLine("rm [catalogId] - удалить каталог");
+	var catalogsInfo = await catalogRepository.GetCatalogs(parentId, currentPage);
+    PrintCatalogsInfo(catalogsInfo);
 
     string action = Console.ReadLine();
-	switch (action?.Split(' ')[0])
+    string param = action.Substring(action.IndexOf(' ') + 1);
+
+    switch (action?.Split(' ')[0])
 	{
 		case "n":
-			currentPage = Math.Min(currentPage + 1, catalogsReseponse.TotalPages);
+			currentPage = Math.Min(currentPage + 1, catalogsInfo.TotalPages);
             break;
         case "p":
             currentPage = Math.Max(currentPage - 1, 1);
             break;
         case "cd":
-            long newParentId = long.Parse(action.Split(' ')[1]);
-            if (catalogsReseponse.Data.Any(c => c.Id == newParentId))
-            {
-                parentId = newParentId;
-                currentPage = 1;
-            }
+            JoinInCatalog(long.Parse(param), catalogsInfo.Data);
             break;
         case "..":
-            if (parentId == null)
-            {
-                break;
-            }
-
-            var parentCatalog = await GetCatalogById((long)parentId!);
-            parentId = parentCatalog?.ParentId ?? null;
-            currentPage = 1;
+            await LeftFromCatalog();
             break;
         case "mk":
-            await AddNewCatalog(parentId, action.Substring(action.IndexOf(' ') + 1));
+            await catalogRepository.CreateCatalog(parentId, param);
             break;
         case "rm":
-            long removeCatalogId = long.Parse(action.Split(' ')[1]);
-            if (catalogsReseponse.Data.Any(c => c.Id == removeCatalogId))
+            long removeCatalogId = long.Parse(param);
+            if (catalogsInfo.Data.Any(c => c.Id == removeCatalogId))
             {
-                await DeleteCatalog(removeCatalogId);
+                await catalogRepository.DeleteCatalog(removeCatalogId);
+            }
+            break;
+        case "upd":
+            long updateCatalogId = long.Parse(param);
+            if (catalogsInfo.Data.Any(c => c.Id == updateCatalogId))
+            {
+                await UpdateCatalog(updateCatalogId);
             }
             break;
         default:
@@ -71,96 +54,65 @@ while (true)
     Console.Clear();
 }
 
-async Task<ResponsePaginationDTO<CatalogDTO>?> GetCatalogs(long? parentCatalogId = null, int pageNumber = 1)
+void PrintCatalogsInfo(ResponsePaginationDTO<CatalogDTO> catalogsInfo)
 {
-	string parentCatalogIdQuery = string.Empty;
-	if (parentCatalogId != null)
-	{
-		parentCatalogIdQuery = $"&parentId={parentCatalogId}";
+    Console.WriteLine($"Текущий каталог - {(parentId == null ? "root" : parentId)}. Вложенные:");
+    foreach (var catalog in catalogsInfo.Data)
+    {
+        Console.WriteLine($"[{catalog.Id} ID] {catalog.Name}");
     }
+    Console.WriteLine($"\nСтраница: {catalogsInfo.PageNumber} из {catalogsInfo.TotalPages}\n");
 
-	try
-	{
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{serverAddress}Catalogs?PageNumber={pageNumber}{parentCatalogIdQuery}");
-        using var response = await client.SendAsync(request);
-
-        response.EnsureSuccessStatusCode();
-
-		var responseBody = await response.Content.ReadAsStringAsync();
-		var responseObject = JsonConvert.DeserializeObject<ResponsePaginationDTO<CatalogDTO>>(responseBody);
-
-		return responseObject;
-    }
-	catch (Exception ex)
-	{
-		Console.WriteLine(ex);
-	}
-
-    return null;
+    Console.WriteLine("Введите команду:");
+    Console.WriteLine("n - следующая страница");
+    Console.WriteLine("p - предыдущая страница");
+    Console.WriteLine("cd [catalogId] - зайти в каталог");
+    Console.WriteLine(".. - выйти из текущего каталога назад");
+    Console.WriteLine("mk [catalogName] - создать каталог в текущем каталоге");
+    Console.WriteLine("rm [catalogId] - удалить каталог");
+    Console.WriteLine("upd [catalogId] - изменить каталог");
+    Console.WriteLine();
 }
 
-async Task<CatalogDTO?> GetCatalogById(long catalogId)
+void JoinInCatalog(long newCatalogId, IEnumerable<CatalogDTO> currentCatalogs)
 {
-    try
+    // Если каталог, в который мы хотим войти, находится в этом же каталоге
+    if (currentCatalogs.Any(c => c.Id == newCatalogId))
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{serverAddress}Catalogs/{catalogId}");
-        using var response = await client.SendAsync(request);
-
-        response.EnsureSuccessStatusCode();
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        var responseObject = JsonConvert.DeserializeObject<CatalogDTO>(responseBody);
-
-        return responseObject;
+        parentId = newCatalogId;
+        currentPage = 1;
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex);
-    }
-
-    return null;
 }
 
-async Task<CatalogDTO?> AddNewCatalog(long? parentId, string name)
+async Task LeftFromCatalog()
 {
-    var parentIdStr = parentId == null ? "null" : parentId.ToString();
-    try
+    if (parentId == null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{serverAddress}Catalogs");
-        var content = new StringContent($"{{\r\n  \"name\": \"{name}\",\r\n  \"parentId\": {parentIdStr}\r\n}}", null, "application/json");
-        request.Content = content;
-        using var response = await client.SendAsync(request);
-
-        response.EnsureSuccessStatusCode();
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        var responseObject = JsonConvert.DeserializeObject<CatalogDTO>(responseBody);
-
-        return responseObject;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine(ex);
+        return;
     }
 
-    return null;
+    // Получаем родительский каталог
+    var parentCatalog = await catalogRepository.GetCatalogById((long)parentId!);
+
+    // Если родительский каталог пропал или он в root`е
+    // То переходим в root
+    parentId = parentCatalog?.ParentId ?? null;
+    currentPage = 1;
 }
 
-async Task<bool> DeleteCatalog(long catalogId)
+async Task UpdateCatalog(long catalogId)
 {
-    try
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{serverAddress}Catalogs/{catalogId}");
-        using var response = await client.SendAsync(request);
+    Console.Write("Введите новое имя (или нажмите Enter, чтобы пропустить): ");
+    string newName = Console.ReadLine();
 
-        response.EnsureSuccessStatusCode();
+    Console.Write("Введите ID нового родительского объекта (или нажмите Enter, чтобы пропустить): ");
+    string newParentIdStr = Console.ReadLine();
 
-        return true;
-    }
-    catch (Exception ex)
+    long? newParentId = null;
+    if (long.TryParse(newParentIdStr, out long tmp))
     {
-        Console.WriteLine(ex);
+        newParentId = tmp;
     }
 
-    return false;
+    await catalogRepository.UpdateCatalog(catalogId, newName, newParentId);
 }
